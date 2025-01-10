@@ -1,0 +1,213 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+.fa {
+  font-family: 'FontAwesome' !important;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  overflow: hidden;
+  position: relative;
+}
+.darker {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20vh;
+  background: linear-gradient(0deg, #000000 0%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+body,
+input,
+* {
+  font-family: 'Akrobat', sans-serif;
+}
+.wrap {
+  position: absolute;
+  bottom: 35px;
+  left: 1vw;
+  right: 1vw;
+  justify-content: space-evenly;
+}
+.people {
+  text-align: center;
+  flex: 1 1 5%;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  position: relative;
+  transition: filter 0.5s, transform 0.5s;
+  filter: grayscale(0) brightness(1) drop-shadow(0px 11px 3px rgba(0, 0, 0, 0.75));
+}
+.people.options .people-role-select {
+  opacity: 1;
+  height: auto;
+}
+.people.die {
+  transform: translateY(15px);
+  filter: grayscale(1) brightness(0.75) drop-shadow(0px 0px 0px rgba(0, 0, 0, 0.5));
+}
+.avatar {
+  width: 80%; /* 90% ширины родителя */
+  height: 0;
+  background: center no-repeat;
+  background-size: cover;
+  padding-top: 100%; /* Соотношение сторон 1:1 */
+  margin-left: 5%; /* Центрирование внутри родителя */
+  position: relative;
+  background-color: #222;
+}
+
+.avatar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 30%);
+  z-index: 1;
+}
+
+.avatar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(-135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 30%);
+  z-index: 1;
+}
+.killed-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  z-index: 2;
+}
+.people-name-box {
+  position: absolute;
+  bottom: -25px; /* Позиционирование панели никнейма под аватаром */
+  left: 7%; /* Совпадает с левым отступом аватара */
+  width: 85%; /* Та же ширина, что и у аватара */
+  padding: 3px 5px;
+  background: #000000;
+  color: #fff;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Центрирование содержимого */
+}
+.people-name-box .people-name-index {
+  margin-right: 6px; /* Расстояние между номером и никнеймом */
+  font-size: 90%;
+  font-weight: bold;
+}
+.people-name-box .people-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.people-name-box .people-name:empty {
+  display: none;
+}
+.people-role {
+  position: absolute !important;
+  top: -30px;
+  width: 40px;
+  height: 40px;
+  border-radius: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.people-role.ico-red {
+  visibility: hidden;
+}
+.ico-don,
+.ico-black,
+.ico-sheriff {
+  position: absolute !important;
+  top: 0; /* Позиционирование в верхнем углу */
+  left: 0; /* Позиционирование в левом углу */
+  width: 40px; /* Размер иконки */
+  height: 40px; /* Размер иконки */
+  border-radius: 30px; /* Закругленные углы */
+  transform: translate(0, 0); /* Убираем смещение */
+}
+
+.ico-don:after,
+.ico-black:after,
+.ico-sheriff:after {
+  content: '';
+  position: absolute;
+  top: 40%;
+  left: 75%;
+  width: 100%;
+  height: 100%;
+  transform: translateX(-50%) translateY(-50%);
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.ico-don {
+  background-image: url(/icon/don.png);
+  z-index: 2;
+}
+
+.ico-don:after {
+  background-image: url(/icon/don.png);
+  z-index: 2;
+
+}
+
+.ico-black {
+  background-image: url(/icon/black.png);
+  z-index: 2;
+
+}
+
+.ico-black:after {
+  background-image: url(/icon/black.png);
+  z-index: 2;
+
+}
+
+.ico-sheriff {
+  background-image: url(/icon/sheriff.png);
+  z-index: 2;
+
+}
+
+.ico-sheriff:after {
+  background-image: url(/icon/sheriff.png);
+  z-index: 2;
+
+}
+
+.ico-red {
+  background-color: red;
+}
+
+.ico-red:after {
+  filter: saturate(0) invert(1) brightness(10);
+  margin: -2px 0 0 1px;
+}
+.killed-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px; /* Установите нужный размер */
+  height: 30px; /* Установите нужный размер */
+  z-index: 2; /* Убедитесь, что иконка выше других элементов */
+}
