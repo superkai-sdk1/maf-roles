@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<title>Url конвертер</title>
+
+	<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+	<link rel="stylesheet" href="../assets/font-akrobat/css.css">
+	<link rel="stylesheet" href="../assets/flex.css">
+	<link rel="stylesheet" href="./styles-urls.css">
+
+	<!--	<link rel="stylesheet" href="//libs.cdnjs.net/font-awesome/5.15.4/css/all.css">-->
+	<link rel="stylesheet" href="https://libs.cdnjs.net/font-awesome/6.4.2/css/all.css">
+
+</head>
+<body>
+
+<h1>URL конвертер</h1>
+
+<div id="app">
+	<div class="flex flex-center box">
+		<i class="fab fa-youtube flex-fixed">&nbsp;</i>
+		<input type="text" v-model="youtubeURL" @change="youtubeVideoIDSet()" placeholder="URL youtube видео">
+		<input type="text" v-model="youtubeVideoID" placeholder="URL ID видео">
+		<button v-if="youtubeURL" class="flex-fixed fa fa-times" @click="youtubeClear()"></button>
+	</div>
+	<div class="flex flex-center box">
+		<input type="text" v-bind:value="youtubeEmbedUrl" disabled placeholder="URL для OBS Studio">
+		<button v-if="youtubeEmbedUrl" class="flex-fixed fa fa-window-restore" @click="open(youtubeEmbedUrl)" title="Открыть в окне"></button>
+		<button v-if="youtubeEmbedUrl" class="flex-fixed fa fa-copy" @click="copyUrl(youtubeEmbedUrl)" title="Скопировать"></button>
+	</div>
+</div>
+
+
+<script>
+
+
+	const app = new Vue({
+		el: '#app',
+		computed: {
+			/*youtubeVideoID: function () {
+				if(this.youtubeURL) {
+					try {
+						const url = new URL(this.youtubeURL);
+						let params = new URLSearchParams(url.search);
+						return params.get('v');
+					} catch (e) {
+					}
+				}
+				return '';
+			},*/
+			youtubeEmbedUrl: function () {
+				if (this.youtubeVideoID) {
+					return `https://www.youtube.com/embed/${this.youtubeVideoID}?controls=0&autoplay=1&modestbranding=1&rel=0&showinfo=0`;
+				}
+				return '';
+			}
+		},
+		methods: {
+			youtubeVideoIDSet: function () {
+				let params;
+				if (this.youtubeURL) {
+					try {
+						const url = new URL(this.youtubeURL);
+						params = new URLSearchParams(url.search);
+					} catch (e) {
+					}
+				}
+				console.log('++++++++++++', this.youtubeURL, this.youtubeVideoID);
+
+				this.youtubeVideoID = params?.get('v') || '';
+
+
+			},
+			youtubeClear: function () {
+				this.youtubeURL = '';
+				this.youtubeVideoID = '';
+			},
+			open: url => window.open(url),
+			copyUrl: url => navigator.clipboard.writeText(url),
+		},
+		data: {
+			youtubeURL: '',
+			youtubeVideoID: '',
+		}
+	});
+
+</script>
+
+</body>
+</html>

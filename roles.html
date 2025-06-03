@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>MAF ROLES</title>
+
+	<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+	<link rel="stylesheet" href="../assets/font-akrobat/css.css">
+	<link rel="stylesheet" href="../assets/roles-flex.css">
+	<link rel="stylesheet" href="//libs.cdnjs.net/font-awesome/5.15.4/css/all.css">
+	<link rel="stylesheet" href="./styles-roles.css">
+</head>
+<body>
+<div class="darker"></div>
+
+<div id="app">
+	<div v-if="peoples?.length" class="wrap flex flex-50">
+		<people-comp v-for="(people, index) in peoples" :index="index + 1" :value="people"></people-comp>
+	</div>
+
+</div>
+
+
+<script !src="">
+
+	Vue.component('people-comp', {
+		props: ['value', 'index'],
+		methods: {
+			/*roleClassFn: (roleID) => {
+				switch (roleID) {
+					case 'sheriff':
+						return 'ico-sheriff';
+					case 'don':
+						return 'ico-don';
+					case 'black':
+						return 'ico-black';
+					default:
+						return 'ico-red';
+				}
+			},*/
+
+
+		},
+		computed: {
+			roleClass: function () {
+				// return this.roleClassFn(this.value.role);
+
+				switch (this.value.role) {
+					case 'sheriff':
+						return 'ico-sheriff';
+					case 'don':
+						return 'ico-don';
+					case 'black':
+						return 'ico-black';
+					default:
+						return 'ico-red';
+				}
+
+			}
+		},
+		template: `
+		<div class="people" :class="{die: value.action}">
+			<div class="avatar" :style='{backgroundImage: value.avatarCss}'></div>
+          <div class="people-name-box">
+            <div class="people-name-index">{{index}}</div>
+            <div class="people-name">{{value.login}}</div>
+		  </div>
+
+			<div class="people-role" :class="[roleClass]"></div>
+		</div>
+  `
+	});
+
+	const app = new Vue({
+		el: '#app',
+		methods: {
+		},
+		data: {
+			peoples: undefined,
+		}
+	});
+
+	const bcChannel = new BroadcastChannel("maf-panel");
+	bcChannel.onmessage = ev => {
+		// console.log('!!!!!!!!!!!', ev?.data);
+		app.peoples = ev?.data?.tableOut;
+	};
+</script>
+<template>
+	<div class="people" :class="{die: value.action}">
+		<div class="avatar" :style='{backgroundImage: value.avatarCss}'></div>
+		<div class="people-name-box">
+			<div class="people-name-index">{{index}}</div>
+			<div class="people-name">{{value.login}}</div>
+		</div>
+
+		<div class="people-role" :class="[roleClass]"></div>
+
+		<!-- Иконка убийства -->
+		<img v-if="value.action === 'die'" src="/icon/killed.png" class="killed-icon" alt="Killed Icon">
+	</div>
+</template>
+</body>
+</html>

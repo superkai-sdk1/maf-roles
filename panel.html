@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<title>Maf roles control panel</title>
+
+	<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+
+	<link rel="stylesheet" href="../assets/font-akrobat/css.css">
+	<link rel="stylesheet" href="../assets/flex.css">
+	<link rel="stylesheet" href="./styles-panel.css">
+
+	<link rel="stylesheet" href="//libs.cdnjs.net/font-awesome/5.15.4/css/all.css">
+
+	<script src="https://cdn.jsdelivr.net/npm/obs-websocket-js"></script>
+	<script src="./obs-connector.js"></script>
+
+	<style>
+		/* Новые стили для окна ввода */
+		.modal input[type="text"] {
+			background-color: white;
+			border: 1px solid #ccc;
+			border-radius: 5px;
+			padding: 10px;
+			text-align: center;
+			color: #333;
+			margin-bottom: 10px;
+			width: calc(100% - 22px); /* Учитываем padding и border */
+		}
+
+		/* Изменение цвета приветствия */
+		.modal h2 {
+			color: #333;
+		}
+
+		/* Скрыть чекбокс */
+		.hidden {
+			display: none;
+		}
+
+		/* Центрирование кнопок под таблицей */
+		.button-container, .menu-container {
+			display: flex;
+			justify-content: center;
+			margin-top: 20px;
+		}
+
+		/* Увеличение отступов кнопок */
+		.button-container input, .menu-container input {
+			margin: 0 10px;
+			padding: 10px 20px;
+			min-width: 150px; /* Устанавливаем минимальную ширину для всех кнопок */
+		}
+
+		/* Стили для кнопки Сбросить в стиле Material You */
+		.button-reset {
+			background-color: #d32f2f; /* Красный цвет */
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+			transition: background-color 0.3s ease;
+		}
+
+		.button-reset:hover {
+			background-color: #b71c1c; /* Немного другой оттенок */
+		}
+	</style>
+
+</head>
+<body>
+
+<div id="app" class="flex flex-column">
+	<!-- Modal Window -->
+	<div v-if="showModal" class="modal">
+		<div class="modal-content">
+			<h2>Добро пожаловать!</h2>
+			<input type="text" v-model="tournamentId" placeholder="Номер турнира">
+			<input type="button" value="Загрузить турнир" @click="loadTournament()">
+		</div>
+	</div>
+
+	<div class="flex-fixed flex flex-center flex-50">
+		<div v-if="games?.length" class="flex flex-center">
+			<div class="flex-fixed">Игра:</div>
+			<select v-model="gameSelected">
+				<option v-for="(gameEl, index) in games" :value="gameEl.gameNum">Игра {{gameEl.gameNum}}</option>
+			</select>
+		</div>
+		<div v-if="gameSelectedObject?.length" class="flex flex-center">
+			<div class="flex-fixed">Стол:</div>
+			<select v-model="tableSelected">
+				<option v-for="(tableEl, index) in gameSelectedObject" :value="tableEl.tableNum">Стол {{tableEl.tableNum}}</option>
+			</select>
+		</div>
+	</div>
+
+	<div v-if="tableOut?.length" class="players-list">
+		<div class="flex flex-center" v-for="(playerData, index) in tableOut">
+			<b class="flex-fixed">{{index + 1}}</b>
+			<div class="avatar flex-fixed" :style='{backgroundImage: playerData.avatarCss}'></div>
+
+			<i v-if="avatarExHas(playerData.login)" class="fa fa-times f-a-button flex-fixed" @click="avatarExSet(playerData.login)"></i>
+			<div class="hovered flex-fixed">
+				<i class="fa fa-camera f-a-button" @click="avatarExLoad(playerData.login)"></i>
+			</div>
+
+			<div class="text-ellipsis">{{playerData.login}}</div>
+
+			<div class="flex-fixed">
+				<input class="player-button" v-bind:class="{ active: playerData.role === 'don' }" type="button" value="Д" @click="roleSet(playerData.login, 'don')">
+				<input class="player-button" v-bind:class="{ active: playerData.role === 'black' }" type="button" value="Ч" @click="roleSet(playerData.login, 'black')">
+				<input class="player-button" v-bind:class="{ active: playerData.role === 'sheriff' }" type="button" value="Ш" @click="roleSet(playerData.login, 'sheriff')">
+			</div>
+
+			<div class="flex-fixed">
+				<i class="fa fa-skull f-a-button" v-bind:class="{ active: playerData.action === 'die' }" @click="actionSet(playerData.login, 'die')"></i>
+				<i class="fa fa-thumbs-up f-a-button" v-bind:class="{ active: playerData.action === 'like' }" @click="actionSet(playerData.login, 'like')"></i>
+			</div>
+		</div>
+	</div>
+
+	<label class="hidden">
+		<input type="checkbox" checked @change="sendAutoSet($event)">
+		<div>Авто</div>
+	</label>
+
+	<div v-if="gameSelected && tableSelected" class="button-container">
+		<input class="flex-fixed button-reset fixed-size-button" type="button" value="Сбросить" @click="reset()">
+		<input class="flex-fixed fixed-size-button" type="button" value="Отправить" @click="sendAndAddRoles()">
+	</div>
+
+	<div v-if="gameSelected && tableSelected" class="menu-container">
+		<input class="flex-fixed fixed-size-button" type="button" value="Загрузить аватары" @click="playersLoadOnline()">
+		<input class="flex-fixed fixed-size-button" type="button" value="Обновить страницу" @click="refreshPage()">
+	</div>
+
+</div>
+
+
+<script !src>
+
+	const waitPromise = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+	class GoMafiaConnector {
+		apiUrl = 'http://minahor.ru/api/';
+		apiSuffix = '?za';
+
+		async getTournament(tournamentID) {
+			const fd = new FormData();
+			fd.set('url', `https://gomafia.pro/tournament/${tournamentID}`);
+			return await fetch(`${this.apiUrl}get.php${this.apiSuffix}`, {method: 'POST', body: fd})
+					.then(d => d.text())
+					.then(d => d && d.match(/<script id="__NEXT_DATA__" type="application\/json">(.*)<\/script>/))
+					.then(d => d && d[1] && JSON.parse(d[1]) || undefined)
+					;
+		}
+
+		async playersGet(logins) {
+			const fd = new FormData();
+			logins.forEach(playerLogin => fd.append('playerLogin[]', playerLogin));
+			return fetch('http://minahor.ru/api/players-get.php?za', {method: 'POST', body: fd})
+					.then(value => value?.json())
+					.then(value => value?.map(i => JSON.parse(i)))
+		}
+
+		async getUserData(buildId, userId) {
+			const fd = new FormData();
+			fd.set('url', `https://gomafia.pro/_next/data/${buildId}/stats/${userId}.json`);
+			return await fetch(`${this.apiUrl}get.php${this.apiSuffix}`, {method: 'POST', body: fd})
+					.then(d => d?.json())
+					.then(d => d?.pageProps)
+					.then(d => d?.serverData)
+		}
+
+		async getUsersData(buildId, usersIdArray) {
+			const uIds = [...(usersIdArray || [])];
+			const result = [];
+			for (let userId = uIds.shift(); userId; userId = uIds.shift()) {
+				const r = await this.getUserData(buildId, userId);
+				result.push(r);
+				await waitPromise(50);
+			}
+			return result;
+		}
+	}
+
+	const goMafia = new GoMafiaConnector();
+
+</script>
+
+<script !src="">
+
+	const obsConnector = new OBSConnector();
+
+	const app = new Vue({
+		el: '#app',
+		methods: {
+			loadTournament: function () {
+				if (!this.tournamentId) {
+					alert('Введите номер турнира');
+					return;
+				}
+				goMafia.getTournament(this.tournamentId).then(value => {
+					if (value) {
+						this.gameSelected = undefined;
+						this.tableSelected = undefined;
+						this.tournament = value;
+						this.playersLoad();
+						this.playersLoadOnline(); // Автоматически загружаем аватары после загрузки турнира
+						this.showModal = false; // Hide modal after loading tournament
+					}
+				})
+			},
+			playersLoad: function () {
+				const playersLogin = this.tournament?.props?.pageProps?.serverData?.games[0]?.game?.map(g => g.table).flat(2).map(p => p.login);
+				if (playersLogin?.length) {
+					goMafia.playersGet(playersLogin)
+							.then(value => {
+								value.forEach(p => this.playersData.set(p.login, p));
+								return value;
+							})
+				}
+			},
+			playersLoadOnline: function () {
+				let playersId = this.tournament?.props?.pageProps?.serverData?.games[0]?.game?.map(g => g.table).flat(2).map(p => p.id);
+				playersId = playersId?.filter(i => !!i);
+				if (playersId?.length) {
+					goMafia.getUsersData(this.buildId, playersId)
+							.then(value =>
+									value
+											.map(i => i?.user)
+											.filter(i => !!i)
+											.reduce((m, current) => m.set(current.login, current), new Map())
+							)
+							.then(value => this.playersDataOnline = value);
+				}
+
+			},
+			roleSet: function (playerLogin, type) {
+				const r = this.roles[playerLogin];
+				if (r === type) {
+					delete this.roles[playerLogin];
+				} else {
+					const lastTypesKey = ObjToArray(this.roles).filter(i => i.value === type).map(i => i.key);
+					switch (type) {
+						case 'don':
+						case 'sheriff': {
+							lastTypesKey.forEach(k => delete this.roles[k]);
+							break;
+						}
+						case 'black': {
+							lastTypesKey[1] && (delete this.roles[lastTypesKey[1]]);
+							break;
+						}
+					}
+					this.roles[playerLogin] = type;
+				}
+				this.roles = {...this.roles};
+
+				if (this.sendAuto) {
+					this.send();
+				}
+			},
+			reset: function () {
+				this.roles = {};
+				this.playersActions = new Map();
+
+				bcChannel.postMessage({
+					tableOut: undefined,
+				});
+			},
+			avatarExLoad: async function (userLogin) {
+				loadFileJSON().then(file => {
+					if (file &&
+							(
+									file.type === 'image/jpeg'
+									|| file.type === 'image/jpg'
+									|| file.type === 'image/gif'
+									|| file.type === 'image/png'
+							)
+							&& file.size < 1024 * 1024 * 2 // ( < 2 Mb )
+					) {
+						this.avatarExSet(userLogin, URL.createObjectURL(file));
+					} else {
+						alert('Это не картинка, или она больше 2Mb')
+					}
+				});
+			},
+			avatarExSet: function (userLogin, avaUrl) {
+				const prev = this.playersAvatarEx.get(userLogin);
+				if (prev) {
+					URL.revokeObjectURL(prev);
+					this.playersAvatarEx.delete(userLogin);
+				}
+				if (avaUrl) {
+					this.playersAvatarEx.set(userLogin, avaUrl);
+				}
+				this.playersAvatarEx = new Map(this.playersAvatarEx);
+			},
+			avatarExHas: function (userLogin) {
+				return !!this.playersAvatarEx.get(userLogin);
+			},
+
+			actionSet: function (userLogin, action) {
+				const lastAction = this.playersActions.get(userLogin);
+				if (lastAction === action) {
+					this.playersActions.delete(userLogin);
+				} else {
+					this.playersActions.set(userLogin, action);
+				}
+				this.playersActions = new Map(this.playersActions);
+
+				if (this.sendAuto) {
+					this.send();
+				}
+			},
+			send: function () {
+				bcChannel.postMessage({
+					tableOut: this.tableOut,
+				});
+			},
+			sendAutoSet: function (ev) {
+				this.sendAuto = ev.target.checked;
+			},
+
+			rolesInputAdd: function () {
+				obsConnector.rolesInputAdd();
+			},
+			sendAndAddRoles: function () {
+				this.send();
+				this.rolesInputAdd();
+			},
+			refreshPage: function () {
+				location.reload();
+			}
+		},
+		computed: {
+			buildId: function () {
+				return this.tournament?.buildId;
+			},
+			games: function () {
+				return this.tournament?.props?.pageProps?.serverData?.games || undefined;
+			},
+			gameSelectedObject: function () {
+				if (this.games && this.gameSelected) {
+					const value = this.games.find(g => g.gameNum === this.gameSelected);
+					return value?.game;
+				}
+			},
+			tableSelectedObject: function () {
+				if (this.gameSelectedObject && this.tableSelected) {
+					const value = this.gameSelectedObject.find(g => g.tableNum === this.tableSelected);
+					return value?.table;
+				}
+			},
+			tournamentName: function () {
+				return this.tournament?.props?.pageProps?.serverData?.tournament?.title;
+			},
+			tableOut: function () {
+				return this.tableSelectedObject?.sort((a, b) => (a.place - b.place))?.map(i => {
+					const avaEx = this.playersAvatarEx.get(i.login);
+					const ava = avaEx  || (this.playersDataOnline.get(i.login)?.avatar_link) || (this.playersData.get(i.login)?.avatar_link);
+
+					const role = this.roles[i.login];
+					const action = this.playersActions.get(i.login);
+					return {
+						login: i.login,
+						avatar_link: ava,
+						avatarCss: ava && `url("${ava}")`,
+						role: role,
+						action: action,
+					}
+				})
+			},
+
+		},
+		data: {
+			tournament: undefined,
+			gameSelected: undefined,
+			tableSelected: undefined,
+			playersData: new Map(),
+			roles: {},
+			playersAvatarEx: new Map(),
+			playersActions: new Map(),
+			sendAuto: true, // Авто включено по умолчанию
+			playersDataOnline: new Map(),
+			showModal: true, // Show modal by default
+			tournamentId: '' // Bind input to this variable
+		}
+	})
+</script>
+
+<script !src="">
+	function ObjToArray(obj) {
+		const r = [];
+		for (let k in obj) {
+			r.push({key: k, value: obj[k]})
+		}
+		return r;
+	}
+
+	const bcChannel = new BroadcastChannel("maf-panel");
+
+	async function loadFileJSON() {
+		const input = document.createElement('input');
+		document.body.appendChild(input);
+		input.style.display = 'none';
+		input.type = 'file';
+		input.oncancel = () => input.remove();
+		return new Promise(resolve => {
+			input.oninput = (ev) => {
+				resolve(ev.target.files[0]);
+				input.remove();
+			};
+			input.click();
+		});
+	}
+
+</script>
+</body>
+</html>
