@@ -3,177 +3,296 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Maf roles control panel</title>
-
 	<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-
 	<link rel="stylesheet" href="../assets/font-akrobat/css.css">
 	<link rel="stylesheet" href="../assets/flex.css">
 	<link rel="stylesheet" href="./styles-panel.css">
-
-	<link rel="stylesheet" href="//libs.cdnjs.net/font-awesome/5.15.4/css/all.css">
-
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+	<link rel="stylesheet" href="https://cdn.materialdesignicons.com/7.2.96/css/materialdesignicons.min.css">
 	<script src="https://cdn.jsdelivr.net/npm/obs-websocket-js"></script>
 	<script src="./obs-connector.js"></script>
-
 	<style>
-		/* Новые стили для окна ввода */
-		.modal input[type="text"] {
-			background-color: white;
-			border: 1px solid #ccc;
-			border-radius: 5px;
-			padding: 10px;
-			text-align: center;
-			color: #333;
-			margin-bottom: 10px;
-			width: calc(100% - 22px); /* Учитываем padding и border */
+		.player-row.highlighted {
+			box-shadow: 0 0 0 4px #ae8cff, 0 0 16px 6px #ae8cff80;
+			border: 3px solid #ae8cff;
+			z-index: 10;
+			border-radius: 18px;
 		}
-
-		/* Изменение цвета приветствия */
-		.modal h2 {
-			color: #333;
+		.players-list {
+			overflow-x: hidden !important;
+			width: 100%;
+			max-width: 900px;
+			margin: 0 auto;
 		}
-
-		/* Скрыть чекбокс */
-		.hidden {
-			display: none;
-		}
-
-		/* Центрирование кнопок под таблицей */
-		.button-container, .menu-container {
+		.player-row {
 			display: flex;
+			align-items: center;
+			justify-content: flex-start;
+			padding: 6px 0;
+			border-radius: 12px;
+			margin-bottom: 4px;
+			transition: box-shadow 0.2s, border 0.2s;
+			background: rgba(255,255,255,0.04);
+			box-sizing: border-box;
+		}
+		.player-row .role-badges-right {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			margin-left: auto;
+			margin-right: 12px;
+
+		}
+		.role-badge {
+			display: none !important; /* Скрываем бейджи ролей */
+		}
+		.role-badge.don {
+			background: linear-gradient(135deg, #1C1C1C 80%, #4b346b 100%);
+		}
+		.role-badge.sheriff {
+			background: linear-gradient(135deg, #E63946 80%, #b12329 100%);
+		}
+		.role-badge.black {
+			background: linear-gradient(135deg, #1C1C1C 80%, #2d2d2d 100%);
+		}
+		.status-badge {
+			display: inline-flex;
+			align-items: center;
 			justify-content: center;
-			margin-top: 20px;
+			width: 28px;
+			height: 28px;
+			font-size: 1.1em;
+			color: #fff;
+			border-radius: 50%;
+			border: 2px solid #ae8cff;
+			box-shadow: 0 0 10px 2px #ae8cff55;
+			background: #1C1C1C;
+			margin-left: 2px;
 		}
-
-		/* Увеличение отступов кнопок */
-		.button-container input, .menu-container input {
-			margin: 0 10px;
-			padding: 10px 20px;
-			min-width: 150px; /* Устанавливаем минимальную ширину для всех кнопок */
+		.status-badge.die {
+			color: #ae8cff;
+			font-size: 1.35em;
+			display: none !important;
 		}
-
-		/* Стили для кнопки Сбросить в стиле Material You */
-		.button-reset {
-			background-color: #d32f2f; /* Красный цвет */
-			color: white;
-			border: none;
-			border-radius: 4px;
-			cursor: pointer;
-			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-			transition: background-color 0.3s ease;
+		.status-badge.like {
+			color: #ae8cff;
+			display: none !important;
 		}
-
-		.button-reset:hover {
-			background-color: #b71c1c; /* Немного другой оттенок */
+		.role-button {
+			margin: 0 2px;
+		}
+		@media (max-width: 600px) {
+			.player-row {
+				flex-wrap: wrap;
+			}
+			.players-list {
+				max-width: 100vw;
+			}
 		}
 	</style>
-
 </head>
 <body>
-
-<div id="app" class="flex flex-column">
-	<!-- Modal Window -->
+<div id="app">
+	<!-- Модальное окно выбора режима -->
 	<div v-if="showModal" class="modal">
 		<div class="modal-content">
 			<h2>Добро пожаловать!</h2>
-			<input type="text" v-model="tournamentId" placeholder="Номер турнира">
-			<input type="button" value="Загрузить турнир" @click="loadTournament()">
+			<div class="radio-group">
+				<label>
+					<input type="radio" id="gomafia" value="gomafia" v-model="inputMode">
+					Gomafia турнир
+				</label>
+				<label>
+					<input type="radio" id="manual" value="manual" v-model="inputMode">
+					Ручная рассадка
+				</label>
+			</div>
+			<div v-if="inputMode === 'gomafia'" class="modal-fields">
+				<input type="text" v-model="tournamentId" placeholder="Номер турнира">
+				<input type="button" value="Загрузить турнир" @click="loadTournament()">
+			</div>
+			<div v-else class="modal-fields">
+				<input type="number" min="1" max="15" v-model.number="manualPlayersCount" placeholder="Кол-во игроков (1-15)">
+				<input type="button" value="Создать стол" @click="createManualTable()">
+			</div>
 		</div>
 	</div>
 
-	<div class="flex-fixed flex flex-center flex-50">
-		<div v-if="games?.length" class="flex flex-center">
-			<div class="flex-fixed">Игра:</div>
-			<select v-model="gameSelected">
-				<option v-for="(gameEl, index) in games" :value="gameEl.gameNum">Игра {{gameEl.gameNum}}</option>
+	<!-- Верхняя панель выбора игры и стола -->
+	<div class="flex flex-center top-panel">
+		<div class="flex flex-center">
+			<span class="label">Игра:</span>
+			<select
+					:value="manualMode ? manualGameSelected : gameSelected"
+					@change="onManualGameSelect($event)">
+				<option v-for="game in manualMode ? manualGames : games" :value="game.num || game.gameNum">
+					Игра {{game.num || game.gameNum}}
+				</option>
+				<option v-if="manualMode" value="new">+ Новая игра</option>
 			</select>
 		</div>
-		<div v-if="gameSelectedObject?.length" class="flex flex-center">
-			<div class="flex-fixed">Стол:</div>
-			<select v-model="tableSelected">
-				<option v-for="(tableEl, index) in gameSelectedObject" :value="tableEl.tableNum">Стол {{tableEl.tableNum}}</option>
+		<div v-if="!manualMode && gameSelectedObject && gameSelectedObject.length" class="flex flex-center">
+			<span class="label">Стол:</span>
+			<select v-model.number="tableSelected">
+				<option v-for="(tableEl, index) in gameSelectedObject" :value="Number(tableEl.tableNum)">
+					Стол {{tableEl.tableNum}}
+				</option>
 			</select>
 		</div>
 	</div>
 
+	<!-- Таблица игроков -->
 	<div v-if="tableOut?.length" class="players-list">
-		<div class="flex flex-center" v-for="(playerData, index) in tableOut">
-			<b class="flex-fixed">{{index + 1}}</b>
-			<div class="avatar flex-fixed" :style='{backgroundImage: playerData.avatarCss}'></div>
-
-			<i v-if="avatarExHas(playerData.login)" class="fa fa-times f-a-button flex-fixed" @click="avatarExSet(playerData.login)"></i>
-			<div class="hovered flex-fixed">
-				<i class="fa fa-camera f-a-button" @click="avatarExLoad(playerData.login)"></i>
+		<div v-for="(playerData, index) in tableOut"
+			 :key="playerData.roleKey"
+			 class="player-row"
+			 :style="{'--i':index}"
+			 :class="{'highlighted': highlightedPlayer === playerData.roleKey}"
+			 @click="toggleHighlight(playerData.roleKey)"
+		>
+			<b class="flex-fixed player-num">{{index + 1}}</b>
+			<div class="avatar-uploader flex-fixed">
+				<div class="avatar" :style="{backgroundImage: playerData.avatarCss}"></div>
+				<div v-if="avatarExHas(playerData.roleKey)" class="avatar-x" @click.stop="avatarExSet(playerData.roleKey)">
+					<i class="fa fa-times"></i>
+				</div>
+				<div class="hovered" @click.stop="avatarExLoad(playerData.roleKey)">
+					<i class="fa fa-camera"></i>
+					<input type="file" accept="image/*" @change="onAvatarExUpload($event, playerData.roleKey)" ref="fileInputs" />
+				</div>
 			</div>
+			<template v-if="manualMode">
+				<template v-if="manualGameSelected === 1">
+					<input class="input-compact" v-model="manualPlayers[index].login" placeholder="Имя игрока">
+				</template>
+				<template v-else>
+					<select v-model="manualPlayers[index].login" @change="onManualSelectPlayer(index)">
+						<option value="">— Новый игрок —</option>
+						<option v-for="(p, idx) in firstGamePlayers" :value="p.login">{{p.login}}</option>
+					</select>
+				</template>
+			</template>
+			<div v-else class="text-ellipsis player-name">{{playerData.login}}</div>
 
-			<div class="text-ellipsis">{{playerData.login}}</div>
-
-			<div class="flex-fixed">
-				<input class="player-button" v-bind:class="{ active: playerData.role === 'don' }" type="button" value="Д" @click="roleSet(playerData.login, 'don')">
-				<input class="player-button" v-bind:class="{ active: playerData.role === 'black' }" type="button" value="Ч" @click="roleSet(playerData.login, 'black')">
-				<input class="player-button" v-bind:class="{ active: playerData.role === 'sheriff' }" type="button" value="Ш" @click="roleSet(playerData.login, 'sheriff')">
-			</div>
-
-			<div class="flex-fixed">
-				<i class="fa fa-skull f-a-button" v-bind:class="{ active: playerData.action === 'die' }" @click="actionSet(playerData.login, 'die')"></i>
-				<i class="fa fa-thumbs-up f-a-button" v-bind:class="{ active: playerData.action === 'like' }" @click="actionSet(playerData.login, 'like')"></i>
+			<!-- Блок ролей и статусов справа -->
+			<div class="role-badges-right">
+				<!-- Роли (бейджи скрыты через CSS) -->
+				<div class="role-badge don" v-if="playerData.role === 'don'">Д</div>
+				<div class="role-badge black" v-if="playerData.role === 'black'">М</div>
+				<div class="role-badge sheriff" v-if="playerData.role === 'sheriff'">Ш</div>
+				<!-- Статусы -->
+				<div class="status-badge die" v-if="playerData.action === 'die'">
+					<i class="mdi mdi-crosshairs-gps"></i>
+				</div>
+				<div class="status-badge like" v-if="playerData.action === 'like'">
+					<i class="fa fa-thumbs-up"></i>
+				</div>
+				<!-- Кнопки ролей, только при редактировании -->
+				<template v-if="editRoles">
+					<input class="role-button" :class="{ active: playerData.role === 'don' }" type="button" value="Д" @click.stop="roleSet(playerData.roleKey, 'don')" title="Дон">
+					<input class="role-button" :class="{ active: playerData.role === 'black' }" type="button" value="М" @click.stop="roleSet(playerData.roleKey, 'black')" title="Мафия">
+					<input class="role-button" :class="{ active: playerData.role === 'sheriff' }" type="button" value="Ш" @click.stop="roleSet(playerData.roleKey, 'sheriff')" title="Шериф">
+				</template>
+				<!-- Кнопки действий, если не редактируются роли -->
+				<template v-if="!editRoles">
+					<button class="role-button" :class="{ active: playerData.action === 'die' }" @click.stop="actionSet(playerData.roleKey, 'die')" title="Мёртв">
+						<i class="mdi mdi-crosshairs-gps"></i>
+					</button>
+					<button class="role-button" :class="{ active: playerData.action === 'like' }" @click.stop="actionSet(playerData.roleKey, 'like')" title="Лучший игрок">
+						<i class="fa fa-thumbs-up"></i>
+					</button>
+				</template>
 			</div>
 		</div>
 	</div>
 
-	<label class="hidden">
-		<input type="checkbox" checked @change="sendAutoSet($event)">
-		<div>Авто</div>
-	</label>
-
-	<div v-if="gameSelected && tableSelected" class="button-container">
-		<input class="flex-fixed button-reset fixed-size-button" type="button" value="Сбросить" @click="reset()">
-		<input class="flex-fixed fixed-size-button" type="button" value="Отправить" @click="sendAndAddRoles()">
+	<!-- Переключатель "Редактировать роли" -->
+	<div class="switch-row" v-if="tableOut?.length">
+		<label class="m3e-switch">
+			<input type="checkbox" v-model="editRoles">
+			<span class="slider"></span>
+			<span class="switch-label">Редактировать роли</span>
+		</label>
 	</div>
 
-	<div v-if="gameSelected && tableSelected" class="menu-container">
-		<input class="flex-fixed fixed-size-button" type="button" value="Загрузить аватары" @click="playersLoadOnline()">
-		<input class="flex-fixed fixed-size-button" type="button" value="Обновить страницу" @click="refreshPage()">
+	<!-- Кнопки управления -->
+	<div v-if="tableOut?.length" class="button-container">
+		<input class="button-reset fixed-size-button" type="button" value="Сбросить" @click="reset()">
+		<input class="fixed-size-button" type="button" value="Отправить" @click="sendAndAddRoles()">
+	</div>
+	<div v-if="tableOut?.length && !manualMode" class="menu-container">
+		<input class="fixed-size-button" type="button" value="Загрузить аватары" @click="playersLoadOnline()">
+		<input class="fixed-size-button" type="button" value="Обновить страницу" @click="refreshPage()">
+	</div>
+	<div v-if="tableOut?.length && manualMode" class="menu-container">
+		<input class="fixed-size-button" type="button" value="Вернуться к выбору режима" @click="resetManualMode()">
 	</div>
 
+	<!-- Новые поля и тумблеры ВНИЗУ -->
+	<div v-if="tableOut?.length" class="bottom-fields">
+		<div class="flex flex-row bottom-inputs">
+			<input class="m3e-input input-compact" type="text" v-model="mainInfoText" @input="panelStateChanged" placeholder="Основная информация">
+			<input class="m3e-input input-compact" type="text" v-model="additionalInfoText" @input="panelStateChanged" placeholder="Дополнительная информация">
+		</div>
+		<div class="switches-bottom">
+			<label class="m3e-switch">
+				<input type="checkbox" v-model="mainInfoVisible" @change="panelStateChanged">
+				<span class="slider"></span>
+				<span>Основная информация</span>
+			</label>
+			<label class="m3e-switch">
+				<input type="checkbox" v-model="additionalInfoVisible" @change="panelStateChanged">
+				<span class="slider"></span>
+				<span>Доп. информация</span>
+			</label>
+			<label class="m3e-switch">
+				<input type="checkbox" v-model="hideSeating" @change="panelStateChanged">
+				<span class="slider"></span>
+				<span>Скрыть рассадку</span>
+			</label>
+			<label class="m3e-switch">
+				<input type="checkbox" v-model="hideLeaveOrder" @change="panelStateChanged">
+				<span class="slider"></span>
+				<span>Скрыть порядок ухода</span>
+			</label>
+			<label class="m3e-switch">
+				<input type="checkbox" v-model="hideRolesStatus" @change="panelStateChanged">
+				<span class="slider"></span>
+				<span>Скрыть роли и статус</span>
+			</label>
+		</div>
+	</div>
 </div>
 
-
-<script !src>
-
+<script>
+	// Содержимое JS блока не менялось
 	const waitPromise = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
-
 	class GoMafiaConnector {
 		apiUrl = 'http://minahor.ru/api/';
 		apiSuffix = '?za';
-
 		async getTournament(tournamentID) {
 			const fd = new FormData();
 			fd.set('url', `https://gomafia.pro/tournament/${tournamentID}`);
 			return await fetch(`${this.apiUrl}get.php${this.apiSuffix}`, {method: 'POST', body: fd})
 					.then(d => d.text())
 					.then(d => d && d.match(/<script id="__NEXT_DATA__" type="application\/json">(.*)<\/script>/))
-					.then(d => d && d[1] && JSON.parse(d[1]) || undefined)
-					;
+					.then(d => d && d[1] && JSON.parse(d[1]) || undefined);
 		}
-
 		async playersGet(logins) {
 			const fd = new FormData();
 			logins.forEach(playerLogin => fd.append('playerLogin[]', playerLogin));
 			return fetch('http://minahor.ru/api/players-get.php?za', {method: 'POST', body: fd})
 					.then(value => value?.json())
-					.then(value => value?.map(i => JSON.parse(i)))
+					.then(value => value?.map(i => JSON.parse(i)));
 		}
-
 		async getUserData(buildId, userId) {
 			const fd = new FormData();
 			fd.set('url', `https://gomafia.pro/_next/data/${buildId}/stats/${userId}.json`);
 			return await fetch(`${this.apiUrl}get.php${this.apiSuffix}`, {method: 'POST', body: fd})
 					.then(d => d?.json())
 					.then(d => d?.pageProps)
-					.then(d => d?.serverData)
+					.then(d => d?.serverData);
 		}
-
 		async getUsersData(buildId, usersIdArray) {
 			const uIds = [...(usersIdArray || [])];
 			const result = [];
@@ -185,13 +304,7 @@
 			return result;
 		}
 	}
-
 	const goMafia = new GoMafiaConnector();
-
-</script>
-
-<script !src="">
-
 	const obsConnector = new OBSConnector();
 
 	const app = new Vue({
@@ -204,14 +317,27 @@
 				}
 				goMafia.getTournament(this.tournamentId).then(value => {
 					if (value) {
-						this.gameSelected = undefined;
-						this.tableSelected = undefined;
+						this.manualMode = false;
 						this.tournament = value;
+						const games = value?.props?.pageProps?.serverData?.games;
+						if (games && games.length > 0) {
+							this.gameSelected = Number(games[0].gameNum);
+							const tables = games[0].game;
+							if (tables && tables.length > 0) {
+								this.tableSelected = Number(tables[0].tableNum);
+							} else {
+								this.tableSelected = undefined;
+							}
+						} else {
+							this.gameSelected = undefined;
+							this.tableSelected = undefined;
+						}
 						this.playersLoad();
-						this.playersLoadOnline(); // Автоматически загружаем аватары после загрузки турнира
-						this.showModal = false; // Hide modal after loading tournament
+						this.playersLoadOnline();
+						this.showModal = false;
+						this.editRoles = true; // сбрасываем на "редактировать роли" при загрузке турнира
 					}
-				})
+				});
 			},
 			playersLoad: function () {
 				const playersLogin = this.tournament?.props?.pageProps?.serverData?.games[0]?.game?.map(g => g.table).flat(2).map(p => p.login);
@@ -220,7 +346,7 @@
 							.then(value => {
 								value.forEach(p => this.playersData.set(p.login, p));
 								return value;
-							})
+							});
 				}
 			},
 			playersLoadOnline: function () {
@@ -236,29 +362,31 @@
 							)
 							.then(value => this.playersDataOnline = value);
 				}
-
 			},
-			roleSet: function (playerLogin, type) {
-				const r = this.roles[playerLogin];
+			roleSet: function (roleKey, type) {
+				const r = this.roles[roleKey];
 				if (r === type) {
-					delete this.roles[playerLogin];
+					this.$delete(this.roles, roleKey);
 				} else {
-					const lastTypesKey = ObjToArray(this.roles).filter(i => i.value === type).map(i => i.key);
+					const lastTypesKey = Object.entries(this.roles)
+							.filter(([k, v]) => v === type && k !== roleKey)
+							.map(([k]) => k);
 					switch (type) {
 						case 'don':
 						case 'sheriff': {
-							lastTypesKey.forEach(k => delete this.roles[k]);
+							lastTypesKey.forEach(k => this.$delete(this.roles, k));
 							break;
 						}
 						case 'black': {
-							lastTypesKey[1] && (delete this.roles[lastTypesKey[1]]);
+							if (lastTypesKey.length >= 2) {
+								this.$delete(this.roles, lastTypesKey[0]);
+							}
 							break;
 						}
 					}
-					this.roles[playerLogin] = type;
+					this.$set(this.roles, roleKey, type);
 				}
 				this.roles = {...this.roles};
-
 				if (this.sendAuto) {
 					this.send();
 				}
@@ -266,52 +394,64 @@
 			reset: function () {
 				this.roles = {};
 				this.playersActions = new Map();
-
+				this.highlightedPlayer = null;
 				bcChannel.postMessage({
 					tableOut: undefined,
+					highlightedPlayer: null,
 				});
 			},
-			avatarExLoad: async function (userLogin) {
-				loadFileJSON().then(file => {
-					if (file &&
-							(
-									file.type === 'image/jpeg'
-									|| file.type === 'image/jpg'
-									|| file.type === 'image/gif'
-									|| file.type === 'image/png'
-							)
-							&& file.size < 1024 * 1024 * 2 // ( < 2 Mb )
-					) {
-						this.avatarExSet(userLogin, URL.createObjectURL(file));
-					} else {
-						alert('Это не картинка, или она больше 2Mb')
+			avatarExLoad: function (roleKey) {
+				const fileInputs = this.$refs.fileInputs;
+				if (fileInputs && fileInputs.length) {
+					const idx = this.tableOut.findIndex(p => p.roleKey === roleKey);
+					fileInputs[idx].click();
+				}
+			},
+			onAvatarExUpload(ev, roleKey) {
+				const file = ev.target.files[0];
+				if (!file) return;
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					this.avatarExSet(roleKey, e.target.result);
+					if (this.manualMode) {
+						const idx = this.tableOut.findIndex(p => p.roleKey === roleKey);
+						if (idx !== -1) {
+							this.manualGames.find(g => g.num === this.manualGameSelected).players[idx].avatar_link = e.target.result;
+							this.manualGames.find(g => g.num === this.manualGameSelected).players[idx].avatarCss = `url("${e.target.result}")`;
+						}
 					}
-				});
+				};
+				reader.readAsDataURL(file);
 			},
-			avatarExSet: function (userLogin, avaUrl) {
-				const prev = this.playersAvatarEx.get(userLogin);
+			avatarExSet: function (roleKey, avaUrl) {
+				const prev = this.playersAvatarEx.get(roleKey);
 				if (prev) {
 					URL.revokeObjectURL(prev);
-					this.playersAvatarEx.delete(userLogin);
+					this.playersAvatarEx.delete(roleKey);
 				}
 				if (avaUrl) {
-					this.playersAvatarEx.set(userLogin, avaUrl);
+					this.playersAvatarEx.set(roleKey, avaUrl);
 				}
 				this.playersAvatarEx = new Map(this.playersAvatarEx);
+				if (this.manualMode) {
+					const idx = this.tableOut.findIndex(p => p.roleKey === roleKey);
+					if (idx !== -1) {
+						this.manualGames.find(g => g.num === this.manualGameSelected).players[idx].avatar_link = avaUrl;
+						this.manualGames.find(g => g.num === this.manualGameSelected).players[idx].avatarCss = avaUrl && `url("${avaUrl}")`;
+					}
+				}
 			},
-			avatarExHas: function (userLogin) {
-				return !!this.playersAvatarEx.get(userLogin);
+			avatarExHas: function (roleKey) {
+				return !!this.playersAvatarEx.get(roleKey);
 			},
-
-			actionSet: function (userLogin, action) {
-				const lastAction = this.playersActions.get(userLogin);
+			actionSet: function (roleKey, action) {
+				const lastAction = this.playersActions.get(roleKey);
 				if (lastAction === action) {
-					this.playersActions.delete(userLogin);
+					this.playersActions.delete(roleKey);
 				} else {
-					this.playersActions.set(userLogin, action);
+					this.playersActions.set(roleKey, action);
 				}
 				this.playersActions = new Map(this.playersActions);
-
 				if (this.sendAuto) {
 					this.send();
 				}
@@ -319,12 +459,12 @@
 			send: function () {
 				bcChannel.postMessage({
 					tableOut: this.tableOut,
+					highlightedPlayer: this.highlightedPlayer,
 				});
 			},
 			sendAutoSet: function (ev) {
 				this.sendAuto = ev.target.checked;
 			},
-
 			rolesInputAdd: function () {
 				obsConnector.rolesInputAdd();
 			},
@@ -334,6 +474,99 @@
 			},
 			refreshPage: function () {
 				location.reload();
+			},
+			createManualTable: function () {
+				this.manualGames = [
+					{
+						num: 1,
+						players: Array.from({length: this.manualPlayersCount}, (_, i) => ({
+							login: "",
+							avatar_link: "",
+							avatarCss: "",
+							id: i + 1,
+							place: i + 1,
+						}))
+					}
+				];
+				this.manualGameSelected = 1;
+				this.manualMode = true;
+				this.showModal = false;
+				this.editRoles = true; // сбрасываем на "редактировать роли" при ручном создании
+			},
+			onManualGameSelect(ev) {
+				if (!this.manualMode) {
+					this.gameSelected = Number(ev.target.value);
+					if (this.gameSelectedObject && this.gameSelectedObject.length) {
+						this.tableSelected = Number(this.gameSelectedObject[0]?.tableNum);
+					}
+					return;
+				}
+				const val = ev.target.value === "new" ? "new" : parseInt(ev.target.value, 10);
+				if (val === "new") {
+					const prev = this.manualGames[this.manualGames.length-1];
+					const newNum = prev.num + 1;
+					const newPlayers = prev.players.map(p => ({
+						login: p.login,
+						avatar_link: p.avatar_link,
+						avatarCss: p.avatarCss,
+						id: p.id,
+						place: p.place
+					}));
+					this.manualGames.push({
+						num: newNum,
+						players: JSON.parse(JSON.stringify(newPlayers))
+					});
+					this.manualGameSelected = newNum;
+				} else {
+					this.manualGameSelected = val;
+				}
+			},
+			onManualSelectPlayer(idx) {
+				const login = this.manualPlayers[idx].login;
+				const found = this.firstGamePlayers.find(p => p.login === login);
+				if (found) {
+					this.manualPlayers[idx].avatar_link = found.avatar_link;
+					this.manualPlayers[idx].avatarCss = found.avatarCss;
+					const roleKey = this.manualGameSelected + '-' + this.manualPlayers[idx].id;
+					if (found.avatar_link) this.avatarExSet(roleKey, found.avatar_link);
+				} else {
+					this.manualPlayers[idx].avatar_link = "";
+					this.manualPlayers[idx].avatarCss = "";
+					const roleKey = this.manualGameSelected + '-' + this.manualPlayers[idx].id;
+					this.avatarExSet(roleKey, null);
+				}
+			},
+			resetManualMode() {
+				this.showModal = true;
+				this.manualMode = false;
+				this.manualGames = [];
+				this.manualGameSelected = 1;
+				this.tournament = undefined;
+				this.gameSelected = undefined;
+				this.tableSelected = undefined;
+				this.roles = {};
+				this.playersActions = new Map();
+				this.highlightedPlayer = null;
+			},
+			panelStateChanged() {
+				const panelState = {
+					mainInfoText: this.mainInfoText,
+					additionalInfoText: this.additionalInfoText,
+					mainInfoVisible: this.mainInfoVisible,
+					additionalInfoVisible: this.additionalInfoVisible,
+					hideSeating: this.hideSeating,
+					hideLeaveOrder: this.hideLeaveOrder,
+					hideRolesStatus: this.hideRolesStatus,
+				};
+				bcChannel.postMessage({ panelState });
+			},
+			toggleHighlight(roleKey) {
+				if (this.highlightedPlayer === roleKey) {
+					this.highlightedPlayer = null;
+				} else {
+					this.highlightedPlayer = roleKey;
+				}
+				bcChannel.postMessage({ highlightedPlayer: this.highlightedPlayer });
 			}
 		},
 		computed: {
@@ -344,37 +577,58 @@
 				return this.tournament?.props?.pageProps?.serverData?.games || undefined;
 			},
 			gameSelectedObject: function () {
-				if (this.games && this.gameSelected) {
-					const value = this.games.find(g => g.gameNum === this.gameSelected);
+				if (this.games && this.gameSelected !== undefined && this.gameSelected !== null) {
+					const selectedNum = Number(this.gameSelected);
+					const value = this.games.find(g => Number(g.gameNum) === selectedNum);
 					return value?.game;
 				}
+				return undefined;
 			},
 			tableSelectedObject: function () {
-				if (this.gameSelectedObject && this.tableSelected) {
-					const value = this.gameSelectedObject.find(g => g.tableNum === this.tableSelected);
+				if (this.gameSelectedObject && this.tableSelected !== undefined && this.tableSelected !== null) {
+					const value = this.gameSelectedObject.find(g => Number(g.tableNum) === Number(this.tableSelected));
 					return value?.table;
 				}
 			},
 			tournamentName: function () {
 				return this.tournament?.props?.pageProps?.serverData?.tournament?.title;
 			},
+			manualPlayers() {
+				if (this.manualMode) {
+					const game = this.manualGames.find(g => g.num === this.manualGameSelected);
+					return game ? game.players : [];
+				}
+				return [];
+			},
+			firstGamePlayers() {
+				if (this.manualGames.length > 0) {
+					return this.manualGames[0].players;
+				}
+				return [];
+			},
 			tableOut: function () {
-				return this.tableSelectedObject?.sort((a, b) => (a.place - b.place))?.map(i => {
-					const avaEx = this.playersAvatarEx.get(i.login);
-					const ava = avaEx  || (this.playersDataOnline.get(i.login)?.avatar_link) || (this.playersData.get(i.login)?.avatar_link);
-
-					const role = this.roles[i.login];
-					const action = this.playersActions.get(i.login);
+				let players;
+				if (this.manualMode) {
+					players = this.manualPlayers;
+				} else {
+					players = this.tableSelectedObject?.sort((a, b) => (a.place - b.place));
+				}
+				return players?.map((i, idx) => {
+					const roleKey = this.manualMode ? (this.manualGameSelected + '-' + i.id) : i.login;
+					const avaEx = this.playersAvatarEx.get(roleKey);
+					const ava = avaEx || i.avatar_link || (this.playersDataOnline.get?.(i.login)?.avatar_link) || (this.playersData.get?.(i.login)?.avatar_link);
+					const role = this.roles[roleKey];
+					const action = this.playersActions.get(roleKey);
 					return {
 						login: i.login,
 						avatar_link: ava,
 						avatarCss: ava && `url("${ava}")`,
 						role: role,
 						action: action,
+						roleKey
 					}
-				})
+				});
 			},
-
 		},
 		data: {
 			tournament: undefined,
@@ -384,40 +638,35 @@
 			roles: {},
 			playersAvatarEx: new Map(),
 			playersActions: new Map(),
-			sendAuto: true, // Авто включено по умолчанию
+			sendAuto: true,
 			playersDataOnline: new Map(),
-			showModal: true, // Show modal by default
-			tournamentId: '' // Bind input to this variable
+			showModal: true,
+			tournamentId: '',
+			inputMode: 'gomafia',
+			manualMode: false,
+			manualPlayersCount: 10,
+			manualGames: [],
+			manualGameSelected: 1,
+			editRoles: true,
+			mainInfoText: "",
+			additionalInfoText: "",
+			mainInfoVisible: true,
+			additionalInfoVisible: true,
+			hideSeating: false,
+			hideLeaveOrder: false,
+			hideRolesStatus: false,
+			highlightedPlayer: null
+		},
+		watch: {
+			gameSelectedObject(newVal) {
+				if (newVal && newVal.length && (this.tableSelected === undefined || this.tableSelected === null)) {
+					this.tableSelected = Number(newVal[0]?.tableNum);
+				}
+			}
 		}
-	})
-</script>
-
-<script !src="">
-	function ObjToArray(obj) {
-		const r = [];
-		for (let k in obj) {
-			r.push({key: k, value: obj[k]})
-		}
-		return r;
-	}
+	});
 
 	const bcChannel = new BroadcastChannel("maf-panel");
-
-	async function loadFileJSON() {
-		const input = document.createElement('input');
-		document.body.appendChild(input);
-		input.style.display = 'none';
-		input.type = 'file';
-		input.oncancel = () => input.remove();
-		return new Promise(resolve => {
-			input.oninput = (ev) => {
-				resolve(ev.target.files[0]);
-				input.remove();
-			};
-			input.click();
-		});
-	}
-
 </script>
 </body>
 </html>
